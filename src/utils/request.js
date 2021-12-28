@@ -7,27 +7,29 @@ const instance = axios.create({
 
 export const get = (url, params = {}, header = {}) => {
   return new Promise((resolve, reject) => {
-    instance.get(url, {
-      params, headers: {
-        "Content-Type": "application/json",
-        ...header
-      }
-    }).then(response => {
-      console.log(header);
+    instance.get(url,
+      {
+        params,
+        headers: {
+          "Content-Type": "application/json",
+          ...header
+        },
+      },
+    ).then(response => {
       resolve(response.data);
-      console.log(response.data)
     }, err => {
       reject(err);
     })
   })
 }
 
-export const post = (url, data = {}, header = {}) => {
+export const post = (url, data = {}, header = {}, params = {}) => {
   return new Promise((resolve, reject) => {
     instance.post(url, data, {
       headers: {
         "Content-Type": "application/json", ...header
-      }
+      },
+      params
     }).then(response => {
       resolve(response.data);
     }, err => {

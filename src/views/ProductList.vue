@@ -1,98 +1,284 @@
 <template>
-  <a-table
-    :columns="columns"
-    :row-key="(record) => record.login.uuid"
-    :data-source="dataSource"
-    :pagination="pagination"
-    :loading="loading"
-    @change="handleTableChange"
-  >
-    <template #bodyCell="{ column, text }">
-      <template v-if="column.dataIndex === 'name'"
-        >{{ text.first }} {{ text.last }}</template
-      >
+  <div class="search">
+    <span class="item">
+      <span> 商品信息：</span>
+      <a-input
+        class="input"
+        v-model:value="inputs.pDesc"
+        placeholder="Basic usage"
+      />
+    </span>
+    <span class="item">
+      <span> 供应商信息：</span>
+      <a-input
+        class="input"
+        v-model:value="inputs.sDesc"
+        placeholder="Basic usage"
+      />
+    </span>
+    <span class="item">
+      <span>标签信息：</span>
+      <a-input
+        class="input"
+        v-model:value="inputs.tDesc"
+        placeholder="Basic usage"
+      />
+    </span>
+    <span class="item">
+      <span> 最小价格：</span>
+      <a-input
+        class="input"
+        v-model:value="inputs.min"
+        placeholder="Basic usage"
+      />
+    </span>
+    <span class="item">
+      <span> 最大价格：</span>
+      <a-input
+        class="input"
+        v-model:value="inputs.max"
+        placeholder="Basic usage"
+      />
+    </span>
+    <a-button type="primary" @click="handleSubmit">Primary Button</a-button>
+  </div>
+  <a-table :data-source="data" :columns="columns" :pagination="pagination">
+    <template
+      #customFilterDropdown="{
+        setSelectedKeys,
+        selectedKeys,
+        confirm,
+        clearFilters,
+        column,
+      }"
+    >
+      <div style="padding: 8px">
+        <a-input
+          ref="searchInput"
+          :placeholder="`Search ${column.dataIndex}`"
+          :value="selectedKeys[0]"
+          style="width: 188px; margin-bottom: 8px; display: block"
+          @change="
+            (e) => setSelectedKeys(e.target.value ? [e.target.value] : [])
+          "
+          @pressEnter="handleSearch(selectedKeys, confirm, column.dataIndex)"
+        />
+        <a-button
+          type="primary"
+          size="small"
+          style="width: 90px; margin-right: 8px"
+          @click="handleSearch(selectedKeys, confirm, column.dataIndex)"
+        >
+          <template #icon><SearchOutlined /></template>
+          Search
+        </a-button>
+        <a-button
+          size="small"
+          style="width: 90px"
+          @click="handleReset(clearFilters)"
+        >
+          Reset
+        </a-button>
+      </div>
+    </template>
+    <template #customFilterIcon="{ filtered }">
+      <search-outlined :style="{ color: filtered ? '#108ee9' : undefined }" />
+    </template>
+    <template #bodyCell="{ column, record }">
+      <template v-if="column.key === 'pid'">
+        <a @click="() => addTOCart(record.pid)">{{ record.pid }}</a>
+      </template>
     </template>
   </a-table>
 </template>
 <script>
-import { usePagination } from "vue-request";
-import { computed, defineComponent } from "vue";
-import axios from "axios";
-const columns = [
-  {
-    title: "Name",
-    dataIndex: "name",
-    sorter: true,
-    width: "20%",
-  },
-  {
-    title: "Gender",
-    dataIndex: "gender",
-    filters: [
-      {
-        text: "Male",
-        value: "male",
-      },
-      {
-        text: "Female",
-        value: "female",
-      },
-    ],
-    width: "20%",
-  },
-  {
-    title: "Email",
-    dataIndex: "email",
-  },
-];
-
-const queryData = (params) => {
-  return axios.get("https://randomuser.me/api?noinfo", {
-    params,
-  });
-};
+import { SearchOutlined } from "@ant-design/icons-vue";
+import { message } from "ant-design-vue";
+import { defineComponent, reactive, ref, toRefs, watchEffect } from "vue";
+import { get, post } from "../utils/request";
 
 export default defineComponent({
+  components: {
+    SearchOutlined,
+  },
+
   setup() {
-    const {
-      data: dataSource,
-      run,
-      loading,
-      current,
-      pageSize,
-    } = usePagination(queryData, {
-      formatResult: (res) => res.data.results,
-      pagination: {
-        currentKey: "page",
-        pageSizeKey: "results",
+    // 商品列表
+    const data = ref([]);
+
+    const inputValue = reactive({
+      inputs: {
+        pDesc: null,
+        sDesc: null,
+        tDesc: null,
+        min: null,
+        max: null,
       },
     });
-    const pagination = computed(() => ({
-      total: 200,
-      current: current.value,
-      pageSize: pageSize.value,
-    }));
+    const pagination = reactive({
+      defaultPageSize: 10,
+      total: 0,
+      onChange: async (page, pageSize) => {
+        await getContentData(page, pageSize);
+      },
+    });
 
-    const handleTableChange = (pag, filters, sorter) => {
-      run({
-        results: pag.pageSize,
-        page: pag?.current,
-        sortField: sorter.field,
-        sortOrder: sorter.order,
-        ...filters,
-      });
+    const getContentData = async (pageNum = 1, pageSize = 10, body = {}) => {
+      const result = await get(
+        "/mall/product",
+        {
+          pageNum,
+          pageSize,
+          ...body,
+        },
+        {
+          Authorization: localStorage.getItem("token"),
+        }
+      );
+      console.log(result);
+      if (result.code === 200) {
+        message.success("商品加载成功");
+        data.value = result.data.list;
+        pagination.total = result.data.lastPage * 10;
+      } else {
+        message.error("商品加载失败");
+      }
     };
 
+    watchEffect(() => {
+      getContentData();
+    });
+
+    const state = reactive({
+      searchText: "",
+      searchedColumn: "",
+    });
+    const searchInput = ref();
+    const columns = [
+      {
+        title: "pDescription",
+        dataIndex: "pDescription",
+        key: "pDescription",
+      },
+      {
+        title: "pName",
+        dataIndex: "pName",
+        key: "pName",
+      },
+      {
+        title: "price",
+        dataIndex: "price",
+        key: "price",
+      },
+      {
+        title: "stock",
+        dataIndex: "stock",
+        key: "stock",
+      },
+      {
+        title: "tName",
+        dataIndex: "tName",
+        key: "tName",
+      },
+      {
+        title: "sName",
+        dataIndex: "sName",
+        key: "sName",
+      },
+      {
+        title: "sPhone",
+        dataIndex: "sPhone",
+        key: "sPhone",
+      },
+      {
+        title: "sEmail",
+        dataIndex: "sEmail",
+        key: "sEmail",
+      },
+      {
+        title: "sDescription",
+        dataIndex: "sDescription",
+        key: "sDescription",
+      },
+      {
+        title: "pid",
+        dataIndex: "pid",
+        key: "pid",
+      },
+    ];
+
+    const handleSearch = (selectedKeys, confirm, dataIndex) => {
+      confirm();
+      state.searchText = selectedKeys[0];
+      state.searchedColumn = dataIndex;
+    };
+
+    const handleReset = (clearFilters) => {
+      clearFilters();
+      state.searchText = "";
+    };
+
+    const addTOCart = async (productId) => {
+      const result = await post(
+        `mall/orderCart/${productId}`,
+        {},
+        {
+          Authorization: localStorage.getItem("token"),
+        },
+        {
+          productId,
+        }
+      );
+      if (result.code === 200) {
+        message.success("添加购物车成功");
+      } else {
+        message.error("商品加载失败");
+      }
+    };
+
+    const handleSubmit = async () => {
+      await getContentData(1, 10, inputValue.inputs);
+    };
+
+    const { inputs } = toRefs(inputValue);
+
     return {
-      dataSource,
-      pagination,
-      loading,
+      data,
       columns,
-      handleTableChange,
+      handleSearch,
+      handleReset,
+      searchInput,
+      ...toRefs(state),
+      pagination,
+      addTOCart,
+      inputs,
+      handleSubmit,
     };
   },
 });
 </script>
-
 <style scoped>
+.highlight {
+  background-color: rgb(255, 192, 105);
+  padding: 0px;
+}
+.search {
+  display: flex;
+  margin: 20px 0;
+  /* flex-wrap: wrap; */
+  justify-content: space-between;
+}
+.search .item {
+  flex: 1;
+  display: flex;
+}
+.search .item span {
+  /* width: 100%; */
+  flex: 1;
+  line-height: 32px;
+  height: 32px;
+}
+.search .item .input {
+  flex: 1;
+}
 </style>
