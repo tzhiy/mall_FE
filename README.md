@@ -1,24 +1,16 @@
-# mall
+# mall_FE
 
-## Project setup
-```
-npm install
-```
+使用 Vue，Vuex，vue-router，Ant Design Vue 实现商城的前端开发
 
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
+## 项目文档
 
-### Compiles and minifies for production
-```
-npm run build
-```
+Under Construction
 
-### Lints and fixes files
-```
-npm run lint
-```
+## 运行项目
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+使用命令 `npm install` 安装依赖
+
+使用命令 `npm run serve` 运行项目
+
+后端部分 [使用ssm+vue框架实现的商城系统 (github.com)](https://github.com/HeavyTiger/mall)
+
