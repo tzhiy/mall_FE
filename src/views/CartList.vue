@@ -1,6 +1,5 @@
 <template>
   <a-table :data-source="data" :columns="columns" :pagination="pagination">
-    <!-- <template #headerCell="{ column }"> </template> -->
     <template
       #customFilterDropdown="{
         setSelectedKeys,
@@ -43,19 +42,112 @@
       <search-outlined :style="{ color: filtered ? '#108ee9' : undefined }" />
     </template>
     <template #bodyCell="{ column, record }">
+      <template v-if="column.key === 'changeAmount'">
+        <a
+          @click="
+            () =>
+              handlechangeAmount(record.orderCartId, record.productAmount, 1)
+          "
+          >{{ record.productAmount }}add</a
+        >
+        <a
+          @click="
+            () =>
+              handlechangeAmount(record.orderCartId, record.productAmount, -1)
+          "
+          >{{ record.productAmount }}decrease</a
+        >
+      </template>
       <template v-if="column.key === 'orderCartId'">
-        <a @click="() => addTOCart(record.orderCartId)">{{
+        <a @click="() => deleteCartItem(record.orderCartId)">{{
           record.orderCartId
         }}</a>
       </template>
     </template>
   </a-table>
+  <div class="container">
+    <a-form
+      class="input"
+      :model="formState"
+      v-bind="layout"
+      name="nest-messages"
+      :validate-messages="validateMessages"
+      @finish="onFinish"
+    >
+      <a-form-item
+        :name="['shipping', 'shippingUser']"
+        label="shippingUser"
+        :rules="[{ required: true }]"
+      >
+        <a-input v-model:value="formState.shipping.shippingUser" />
+      </a-form-item>
+      <a-form-item
+        :name="['shipping', 'shippingPhone']"
+        label="shippingPhone"
+        :rules="[{ required: true }]"
+      >
+        <a-input v-model:value="formState.shipping.shippingPhone" />
+      </a-form-item>
+      <a-form-item
+        :name="['shipping', 'shippingAddress']"
+        label="shippingAddress"
+        :rules="[{ required: true }]"
+      >
+        <a-textarea v-model:value="formState.shipping.shippingAddress" />
+      </a-form-item>
+      <a-form-item :wrapper-col="{ ...layout.wrapperCol, offset: 8 }">
+        <a-button type="primary" html-type="submit">Submit</a-button>
+      </a-form-item>
+    </a-form>
+  </div>
 </template>
 <script>
 import { SearchOutlined } from "@ant-design/icons-vue";
 import { message } from "ant-design-vue";
 import { defineComponent, reactive, ref, toRefs, watchEffect } from "vue";
-import { get, post } from "../utils/request";
+import { get, post, put, deleteMethod } from "../utils/request";
+
+const useSubmitEffect = (getContentData) => {
+  const layout = {
+    labelCol: {
+      span: 8,
+    },
+    wrapperCol: {
+      span: 16,
+    },
+  };
+  const validateMessages = {
+    required: "${label} is required!",
+  };
+  const formState = reactive({
+    shipping: {
+      shippingUser: "",
+      shippingAddress: "",
+      shippingPhone: "",
+    },
+  });
+
+  const onFinish = async (values) => {
+    console.log("Success:", values);
+    const result = await post("/mall/order", formState.shipping, {
+      Authorization: localStorage.getItem("token"),
+    });
+    console.log(result);
+    if (result.code === 200) {
+      message.success("提交成功");
+      getContentData(1, 10);
+    } else {
+      message.error("提交失败");
+    }
+  };
+
+  return {
+    formState,
+    onFinish,
+    layout,
+    validateMessages,
+  };
+};
 
 export default defineComponent({
   components: {
@@ -65,13 +157,16 @@ export default defineComponent({
   setup() {
     // 商品列表
     const data = ref([]);
+    const curPage = ref(1);
     const pagination = reactive({
       defaultPageSize: 10,
       total: 0,
       onChange: async (page, pageSize) => {
+        curPage.value = page;
         await getContentData(page, pageSize);
       },
     });
+
     const getContentData = async (pageNum = 1, pageSize = 10) => {
       console.log(pageNum);
       const result = await get(
@@ -93,7 +188,8 @@ export default defineComponent({
         message.error("商品加载失败");
       }
     };
-
+    const { formState, onFinish, layout, validateMessages } =
+      useSubmitEffect(getContentData);
     watchEffect(() => {
       getContentData();
       console.log(pagination);
@@ -111,20 +207,24 @@ export default defineComponent({
         key: "productName",
       },
       {
+        title: "productPrice",
+        dataIndex: "productPrice",
+        key: "productPrice",
+      },
+      {
+        title: "addTime",
+        dataIndex: "addTime",
+        key: "addTime",
+      },
+      {
         title: "productAmount",
         dataIndex: "productAmount",
         key: "productAmount",
       },
       {
-        title: "productPrice",
-        dataIndex: "productPrice",
-        key: "productPrice",
-      },
-
-      {
-        title: "addTime",
-        dataIndex: "addTime",
-        key: "addTime",
+        title: "changeAmount",
+        dataIndex: "orderCartId",
+        key: "changeAmount",
       },
       {
         title: "orderCartId",
@@ -133,33 +233,47 @@ export default defineComponent({
       },
     ];
 
-    const handleSearch = (selectedKeys, confirm, dataIndex) => {
-      confirm();
-      state.searchText = selectedKeys[0];
-      state.searchedColumn = dataIndex;
+    const handlechangeAmount = async (orderCartId, productAmount, operate) => {
+      if (productAmount + operate <= 0) {
+        message.warning("不能再少了");
+        return;
+      }
+      const result = await put(
+        `/mall/orderCart`,
+        {
+          orderCartId,
+          productAmount: productAmount + operate,
+        },
+        {
+          Authorization: localStorage.getItem("token"),
+        }
+      );
+      console.log(result);
+      if (result.code === 200) {
+        message.success("更新成功");
+        getContentData(curPage.value, 10);
+        console.log(result);
+      } else {
+        message.error("更新失败");
+      }
     };
 
-    const handleReset = (clearFilters) => {
-      clearFilters();
-      state.searchText = "";
-    };
-
-    const addTOCart = async (productId) => {
-      console.log(productId);
-      const result = await post(
-        `mall/orderCart/${productId}`,
-        {},
+    const deleteCartItem = async (orderCartId) => {
+      console.log(orderCartId);
+      const result = await deleteMethod(
+        `mall/orderCart/${orderCartId}`,
         {
           Authorization: localStorage.getItem("token"),
         },
         {
-          productId,
+          orderCartId,
         }
       );
       console.log(result);
       if (result.code === 200) {
         message.success("添加购物车成功");
         console.log(result);
+        getContentData(curPage.value, 10);
       } else {
         message.error("商品加载失败");
       }
@@ -168,12 +282,15 @@ export default defineComponent({
     return {
       data,
       columns,
-      handleSearch,
-      handleReset,
       searchInput,
       ...toRefs(state),
       pagination,
-      addTOCart,
+      deleteCartItem,
+      handlechangeAmount,
+      formState,
+      onFinish,
+      layout,
+      validateMessages,
     };
   },
 });
@@ -182,5 +299,15 @@ export default defineComponent({
 .highlight {
   background-color: rgb(255, 192, 105);
   padding: 0px;
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-content: center;
+}
+
+.input {
+  width: 600px;
 }
 </style>

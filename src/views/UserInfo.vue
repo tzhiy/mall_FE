@@ -152,6 +152,6 @@ export default defineComponent({
 }
 
 .form {
-  width: 800px;
+  width: 600px;
 }
 </style>

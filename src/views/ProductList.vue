@@ -95,7 +95,7 @@
 import { SearchOutlined } from "@ant-design/icons-vue";
 import { message } from "ant-design-vue";
 import { defineComponent, reactive, ref, toRefs, watchEffect } from "vue";
-import { get, post } from "../utils/request";
+import { post } from "../utils/request";
 
 export default defineComponent({
   components: {
@@ -124,15 +124,17 @@ export default defineComponent({
     });
 
     const getContentData = async (pageNum = 1, pageSize = 10, body = {}) => {
-      const result = await get(
+      const result = await post(
         "/mall/product",
         {
-          pageNum,
-          pageSize,
           ...body,
         },
         {
           Authorization: localStorage.getItem("token"),
+        },
+        {
+          pageNum,
+          pageSize,
         }
       );
       console.log(result);
@@ -207,17 +209,6 @@ export default defineComponent({
       },
     ];
 
-    const handleSearch = (selectedKeys, confirm, dataIndex) => {
-      confirm();
-      state.searchText = selectedKeys[0];
-      state.searchedColumn = dataIndex;
-    };
-
-    const handleReset = (clearFilters) => {
-      clearFilters();
-      state.searchText = "";
-    };
-
     const addTOCart = async (productId) => {
       const result = await post(
         `mall/orderCart/${productId}`,
@@ -242,17 +233,20 @@ export default defineComponent({
 
     const { inputs } = toRefs(inputValue);
 
+    const test = () => {
+      console.log(1);
+    };
+
     return {
       data,
       columns,
-      handleSearch,
-      handleReset,
       searchInput,
       ...toRefs(state),
       pagination,
       addTOCart,
       inputs,
       handleSubmit,
+      test,
     };
   },
 });

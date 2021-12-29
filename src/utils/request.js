@@ -51,3 +51,18 @@ export const put = (url, data = {}, header = {}) => {
     })
   })
 }
+
+export const deleteMethod = (url, header = {}, params = {}) => {
+  return new Promise((resolve, reject) => {
+    instance.delete(url, {
+      headers: {
+        "Content-Type": "application/json", ...header
+      },
+      params,
+    }).then(response => {
+      resolve(response.data);
+    }, err => {
+      reject(err);
+    })
+  })
+}
