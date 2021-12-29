@@ -46,22 +46,21 @@
         <a
           @click="
             () =>
-              handlechangeAmount(record.orderCartId, record.productAmount, 1)
+              handleChangeAmount(record.orderCartId, record.productAmount, 1)
           "
-          >{{ record.productAmount }}add</a
+          :style="{ 'margin-right': '16px' }"
+          >增加</a
         >
         <a
           @click="
             () =>
-              handlechangeAmount(record.orderCartId, record.productAmount, -1)
+              handleChangeAmount(record.orderCartId, record.productAmount, -1)
           "
-          >{{ record.productAmount }}decrease</a
+          >减少</a
         >
       </template>
       <template v-if="column.key === 'orderCartId'">
-        <a @click="() => deleteCartItem(record.orderCartId)">{{
-          record.orderCartId
-        }}</a>
+        <a @click="() => deleteCartItem(record.orderCartId)">移除</a>
       </template>
     </template>
   </a-table>
@@ -76,27 +75,27 @@
     >
       <a-form-item
         :name="['shipping', 'shippingUser']"
-        label="shippingUser"
+        label="收货人"
         :rules="[{ required: true }]"
       >
         <a-input v-model:value="formState.shipping.shippingUser" />
       </a-form-item>
       <a-form-item
         :name="['shipping', 'shippingPhone']"
-        label="shippingPhone"
+        label="收货手机号"
         :rules="[{ required: true }]"
       >
         <a-input v-model:value="formState.shipping.shippingPhone" />
       </a-form-item>
       <a-form-item
         :name="['shipping', 'shippingAddress']"
-        label="shippingAddress"
+        label="收货地址"
         :rules="[{ required: true }]"
       >
         <a-textarea v-model:value="formState.shipping.shippingAddress" />
       </a-form-item>
       <a-form-item :wrapper-col="{ ...layout.wrapperCol, offset: 8 }">
-        <a-button type="primary" html-type="submit">Submit</a-button>
+        <a-button type="primary" html-type="submit">提交订单</a-button>
       </a-form-item>
     </a-form>
   </div>
@@ -104,9 +103,10 @@
 <script>
 import { SearchOutlined } from "@ant-design/icons-vue";
 import { message } from "ant-design-vue";
-import { defineComponent, reactive, ref, toRefs, watchEffect } from "vue";
+import { defineComponent, reactive, ref, watchEffect } from "vue";
 import { get, post, put, deleteMethod } from "../utils/request";
 
+// 提交订单功能
 const useSubmitEffect = (getContentData) => {
   const layout = {
     labelCol: {
@@ -117,7 +117,7 @@ const useSubmitEffect = (getContentData) => {
     },
   };
   const validateMessages = {
-    required: "${label} is required!",
+    required: "请输入${label}信息！",
   };
   const formState = reactive({
     shipping: {
@@ -127,15 +127,15 @@ const useSubmitEffect = (getContentData) => {
     },
   });
 
-  const onFinish = async (values) => {
-    console.log("Success:", values);
+  const onFinish = async () => {
     const result = await post("/mall/order", formState.shipping, {
       Authorization: localStorage.getItem("token"),
     });
-    console.log(result);
     if (result.code === 200) {
       message.success("提交成功");
       getContentData(1, 10);
+    } else if (result.code === 701) {
+      message.error("token 过期，请重新登录");
     } else {
       message.error("提交失败");
     }
@@ -149,144 +149,159 @@ const useSubmitEffect = (getContentData) => {
   };
 };
 
+// 获取表格信息功能
+const useGetTableInfoEffect = () => {
+  // 商品列表
+  const data = ref([]);
+  // 当前页面号
+  const curPage = ref(1);
+  // 分页信息
+  const pagination = reactive({
+    defaultPageSize: 10,
+    total: 0,
+    onChange: async (page, pageSize) => {
+      curPage.value = page;
+      await getContentData(page, pageSize);
+    },
+  });
+  const getContentData = async (pageNum = 1, pageSize = 10) => {
+    const result = await get(
+      "/mall/orderCart",
+      {
+        pageNum,
+        pageSize,
+      },
+      {
+        Authorization: localStorage.getItem("token"),
+      }
+    );
+    if (result.code === 200) {
+      data.value = result.data.list;
+      pagination.total = result.data.lastPage * 10;
+    } else if (result.code === 701) {
+      message.error("token 过期，请重新登录");
+    } else {
+      message.error("商品加载失败");
+    }
+  };
+  return { getContentData, data, pagination, curPage };
+};
+
+// 表格构建功能
+const useConstrctTableEffect = () => {
+  const columns = [
+    {
+      title: "商品名称",
+      dataIndex: "productName",
+      key: "productName",
+    },
+    {
+      title: "单价",
+      dataIndex: "productPrice",
+      key: "productPrice",
+    },
+    {
+      title: "添加时间",
+      dataIndex: "addTime",
+      key: "addTime",
+    },
+    {
+      title: "购买数量",
+      dataIndex: "productAmount",
+      key: "productAmount",
+    },
+    {
+      title: "修改数量",
+      dataIndex: "orderCartId",
+      key: "changeAmount",
+    },
+    {
+      title: "移除商品",
+      dataIndex: "orderCartId",
+      key: "orderCartId",
+    },
+  ];
+  return { columns };
+};
+
+// 修改购物车商品功能
+const useChangeCartProductEffect = (curPage, getContentData) => {
+  const handleChangeAmount = async (orderCartId, productAmount, operate) => {
+    if (productAmount + operate <= 0) {
+      message.warning("不能再少了");
+      return;
+    }
+    const result = await put(
+      `/mall/orderCart`,
+      {
+        orderCartId,
+        productAmount: productAmount + operate,
+      },
+      {
+        Authorization: localStorage.getItem("token"),
+      }
+    );
+    if (result.code === 200) {
+      message.success("更新成功");
+      getContentData(curPage.value, 10);
+    } else if (result.code === 701) {
+      message.error("token 过期，请重新登录");
+    } else {
+      message.error("更新失败");
+    }
+  };
+
+  const deleteCartItem = async (orderCartId) => {
+    const result = await deleteMethod(
+      `mall/orderCart/${orderCartId}`,
+      {
+        Authorization: localStorage.getItem("token"),
+      },
+      {
+        orderCartId,
+      }
+    );
+    if (result.code === 200) {
+      message.success("移除成功");
+      getContentData(curPage.value, 10);
+    } else if (result.code === 701) {
+      message.error("token 过期，请重新登录");
+    } else {
+      message.error("移除失败");
+    }
+  };
+  return {
+    handleChangeAmount,
+    deleteCartItem,
+  };
+};
+
 export default defineComponent({
   components: {
     SearchOutlined,
   },
 
   setup() {
-    // 商品列表
-    const data = ref([]);
-    const curPage = ref(1);
-    const pagination = reactive({
-      defaultPageSize: 10,
-      total: 0,
-      onChange: async (page, pageSize) => {
-        curPage.value = page;
-        await getContentData(page, pageSize);
-      },
-    });
-
-    const getContentData = async (pageNum = 1, pageSize = 10) => {
-      console.log(pageNum);
-      const result = await get(
-        "/mall/orderCart",
-        {
-          pageNum,
-          pageSize,
-        },
-        {
-          Authorization: localStorage.getItem("token"),
-        }
-      );
-      console.log(result);
-      if (result.code === 200) {
-        message.success("商品加载成功");
-        data.value = result.data.list;
-        pagination.total = result.data.lastPage * 10;
-      } else {
-        message.error("商品加载失败");
-      }
-    };
+    const { columns } = useConstrctTableEffect();
+    const { getContentData, data, pagination, curPage } =
+      useGetTableInfoEffect();
+    const { handleChangeAmount, deleteCartItem } = useChangeCartProductEffect(
+      curPage,
+      getContentData
+    );
     const { formState, onFinish, layout, validateMessages } =
       useSubmitEffect(getContentData);
+
     watchEffect(() => {
       getContentData();
-      console.log(pagination);
     });
-
-    const state = reactive({
-      searchText: "",
-      searchedColumn: "",
-    });
-    const searchInput = ref();
-    const columns = [
-      {
-        title: "productName",
-        dataIndex: "productName",
-        key: "productName",
-      },
-      {
-        title: "productPrice",
-        dataIndex: "productPrice",
-        key: "productPrice",
-      },
-      {
-        title: "addTime",
-        dataIndex: "addTime",
-        key: "addTime",
-      },
-      {
-        title: "productAmount",
-        dataIndex: "productAmount",
-        key: "productAmount",
-      },
-      {
-        title: "changeAmount",
-        dataIndex: "orderCartId",
-        key: "changeAmount",
-      },
-      {
-        title: "orderCartId",
-        dataIndex: "orderCartId",
-        key: "orderCartId",
-      },
-    ];
-
-    const handlechangeAmount = async (orderCartId, productAmount, operate) => {
-      if (productAmount + operate <= 0) {
-        message.warning("不能再少了");
-        return;
-      }
-      const result = await put(
-        `/mall/orderCart`,
-        {
-          orderCartId,
-          productAmount: productAmount + operate,
-        },
-        {
-          Authorization: localStorage.getItem("token"),
-        }
-      );
-      console.log(result);
-      if (result.code === 200) {
-        message.success("更新成功");
-        getContentData(curPage.value, 10);
-        console.log(result);
-      } else {
-        message.error("更新失败");
-      }
-    };
-
-    const deleteCartItem = async (orderCartId) => {
-      console.log(orderCartId);
-      const result = await deleteMethod(
-        `mall/orderCart/${orderCartId}`,
-        {
-          Authorization: localStorage.getItem("token"),
-        },
-        {
-          orderCartId,
-        }
-      );
-      console.log(result);
-      if (result.code === 200) {
-        message.success("添加购物车成功");
-        console.log(result);
-        getContentData(curPage.value, 10);
-      } else {
-        message.error("商品加载失败");
-      }
-    };
 
     return {
       data,
       columns,
-      searchInput,
-      ...toRefs(state),
       pagination,
       deleteCartItem,
-      handlechangeAmount,
+      handleChangeAmount,
       formState,
       onFinish,
       layout,

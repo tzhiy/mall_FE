@@ -11,27 +11,19 @@
       class="form"
     >
       <a-form-item
-        label="Username"
+        label="用户名"
         name="username"
-        :rules="[{ required: true, message: 'Please input your username!' }]"
+        :rules="[{ required: true, message: '请输入用户名！' }]"
       >
         <a-input v-model:value="formState.username" />
       </a-form-item>
-
       <a-form-item
-        label="Password"
+        label="密码"
         name="password"
-        :rules="[{ required: true, message: 'Please input your password!' }]"
+        :rules="[{ required: true, message: '请输入密码！' }]"
       >
         <a-input-password v-model:value="formState.password" />
       </a-form-item>
-
-      <!-- <a-form-item name="remember" :wrapper-col="{ offset: 8, span: 16 }">
-        <a-checkbox v-model:checked="formState.remember"
-          >Remember me</a-checkbox
-        >
-      </a-form-item> -->
-
       <a-form-item :wrapper-col="{ offset: 8, span: 16 }">
         <a-button class="button-left" type="primary" @click="handleRegister"
           >注册</a-button
@@ -53,24 +45,22 @@ export default defineComponent({
       remember: true,
     });
 
-    const onFinish = async (values) => {
-      console.log("Success:", values);
+    const onFinish = async () => {
       const result = await post("/mall/login", {
         username: formState.username,
         password: formState.password,
       });
-      console.log(result);
       if (result.code === 200) {
         localStorage.setItem("token", result.data);
         message.success("登录成功");
+      } else if (result.code === 201) {
+        message.error("账号或密码错误");
       } else {
         message.error("登录失败");
       }
     };
 
-    const onFinishFailed = (errorInfo) => {
-      console.log("Failed:", errorInfo);
-    };
+    const onFinishFailed = () => {};
 
     const handleRegister = async () => {
       if (formState.username === "" || formState.password === "") {
@@ -81,7 +71,6 @@ export default defineComponent({
         username: formState.username,
         password: formState.password,
       });
-      console.log(result);
       if (result.code === 200) {
         message.success("注册成功，快去登录吧");
       } else {

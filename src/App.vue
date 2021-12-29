@@ -37,7 +37,7 @@
         </div>
       </a-layout-content>
       <a-layout-footer :style="{ textAlign: 'center' }">
-        Ant Design ©2018 Created by Ant UED
+        小组成员：邢淳杰 邓晟淼 陶志远 周可蜜 刘洋
       </a-layout-footer>
     </a-layout>
   </a-layout>
@@ -71,9 +71,10 @@ export default defineComponent({
       "/cartList",
       "/orderList",
     ];
-
+    console.log(
+      "武汉理工大学数据库实验\n小组成员：邢淳杰 邓晟淼 陶志远 周可蜜 刘洋"
+    );
     watch(selectedKeys, (newValue) => {
-      console.log(newValue[0]);
       router.push(routerList[parseInt(newValue[0]) - 1]);
     });
     return {

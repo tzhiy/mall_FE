@@ -10,8 +10,8 @@
     >
       <a-form-item
         :name="['user', 'username']"
-        label="username"
-        :rules="[{ required: true }]"
+        label="用户名"
+        :rules="[{ required: false }]"
       >
         <a-input
           v-model:value="formState.user.username"
@@ -20,23 +20,23 @@
       </a-form-item>
       <a-form-item
         :name="['user', 'password']"
-        label="password"
+        label="密码"
         :rules="[{ required: false }]"
       >
         <a-input v-model:value="formState.user.password" />
       </a-form-item>
-      <a-form-item label="gender" :name="['user', 'password']">
+      <a-form-item label="性别" :name="['user', 'password']">
         <a-radio-group
           v-model:value="formState.user.gender"
           :placeholder="formState.user.gender"
         >
-          <a-radio value="1">male</a-radio>
-          <a-radio value="0">female</a-radio>
+          <a-radio value="1">男</a-radio>
+          <a-radio value="0">女</a-radio>
         </a-radio-group>
       </a-form-item>
       <a-form-item
         :name="['user', 'phone']"
-        label="phone"
+        label="电话"
         :rules="[{ required: false }]"
       >
         <a-input
@@ -46,7 +46,7 @@
       </a-form-item>
       <a-form-item
         :name="['user', 'email']"
-        label="Email"
+        label="邮箱"
         :rules="[{ type: 'email' }]"
       >
         <a-input
@@ -54,14 +54,14 @@
           :placeholder="formState.user.email"
         />
       </a-form-item>
-      <a-form-item :name="['user', 'description']" label="description">
+      <a-form-item :name="['user', 'description']" label="个人描述">
         <a-textarea
           v-model:value="formState.user.description"
           :placeholder="formState.user.description"
         />
       </a-form-item>
       <a-form-item :wrapper-col="{ ...layout.wrapperCol, offset: 8 }">
-        <a-button type="primary" html-type="submit">Submit</a-button>
+        <a-button type="primary" html-type="submit">提交</a-button>
       </a-form-item>
     </a-form>
   </div>
@@ -84,7 +84,6 @@ export default defineComponent({
     });
 
     const getUserInfo = async () => {
-      console.log(localStorage.getItem("token"));
       const result = await get(
         "/mall/customer",
         {},
@@ -92,9 +91,7 @@ export default defineComponent({
           Authorization: localStorage.getItem("token"),
         }
       );
-      console.log(result);
       formState.user = result.data;
-      console.log(formState.user);
     };
 
     getUserInfo();
@@ -123,15 +120,15 @@ export default defineComponent({
         userId: 3,
         ...formState.user,
       };
-      console.log("Success:", formState.user);
       const result = await put("/mall/customer", params, {
         Authorization: localStorage.getItem("token"),
       });
-      console.log(result);
       if (result.code === 200) {
-        message.success("登录成功");
+        message.success("修改成功");
+      } else if (result.code === 701) {
+        message.error("token 过期，请重新登录");
       } else {
-        message.error("登录失败");
+        message.error("修改失败");
       }
     };
 
