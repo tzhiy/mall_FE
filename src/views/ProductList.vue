@@ -233,10 +233,6 @@ export default defineComponent({
 
     const { inputs } = toRefs(inputValue);
 
-    const test = () => {
-      console.log(1);
-    };
-
     return {
       data,
       columns,
@@ -246,7 +242,6 @@ export default defineComponent({
       addTOCart,
       inputs,
       handleSubmit,
-      test,
     };
   },
 });
